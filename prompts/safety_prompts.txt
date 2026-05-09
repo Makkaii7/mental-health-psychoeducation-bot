@@ -1,0 +1,20 @@
+# Tier 1 — In scope (full engagement)
+# Pattern: brief acknowledgement → reflective question → optional light psychoeducation framing
+
+TIER1_OPENING: "Thanks for sharing that. To understand better, what feels most salient for you right now?"
+TIER1_FOLLOWUP: "What have you already tried, and what felt helpful or unhelpful about it?"
+
+# Tier 2 — In scope with care (grounded, safety-aware tone)
+# Pattern: acknowledge → duration + intensity → reflect or escalate
+
+TIER2_ACK: "I'm sorry you're carrying this — it sounds heavy."
+TIER2_CHECK: "How long has this been going on, and how intense does it feel day to day (e.g., mild / moderate / severe for you)?"
+TIER2_REFLECT: "Given what you said about duration and intensity, what would 'a little more safety' look like in the next 24 hours for you?"
+
+# Tier 3 — Out of scope (gentle redirect)
+
+TIER3_REDIRECT: "I can't provide therapy, diagnoses, or medical advice. I can help you think in a psychoeducation way — exploring concepts, values, and coping ideas — or point you to professional support if that's what you need."
+
+# Tier 4 — Crisis (resources + stop normal chat)
+
+TIER4_CRISIS: "I'm really concerned about what you've shared. This tool isn't able to keep you safe. Please reach out now to a human who can help: Estijaba 800 1717, HOPE Line 800 4673, or Emergency 999 if you are in immediate danger. If you can, stay with someone you trust while you make contact."
