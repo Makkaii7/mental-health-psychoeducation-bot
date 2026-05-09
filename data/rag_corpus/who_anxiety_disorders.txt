@@ -1,0 +1,114 @@
+Title: Anxiety disorders — World Health Organization
+Source URL: https://www.who.int/news-room/fact-sheets/detail/anxiety-disorders
+Date accessed: 2026-05-09
+License / terms: © World Health Organization. Fact sheets and Q&A content are typically licensed CC BY-NC-SA 3.0 IGO. Verify the source page before redistribution.
+Word count: 1223
+------------------------------------------------------------------------
+
+## Key facts
+
+Anxiety disorders are the world’s most common mental disorders, affecting 359 million people in 2021.
+
+More women are affected by anxiety disorders than men.
+
+Symptoms of anxiety often have onset during childhood or adolescence.
+
+There are highly effective treatments for anxiety disorders.
+
+Approximately 1 in 4 people with anxiety disorders receive treatment for this condition.
+
+## Overview
+
+Everyone can feel anxious sometimes, but people with anxiety disorders often experience fear and worry that is both intense and excessive. These feelings are typically accompanied by physical tension and other behavioural and cognitive symptoms. They are difficult to control, cause significant distress and can last a long time if untreated. Anxiety disorders interfere with daily activities and can impair a person’s family, social and school or working life.
+
+An estimated 4.4% of the global population currently experience an anxiety disorder (1) . In 2021, 359 million people in the world had an anxiety disorder, making anxiety disorders the most common of all mental disorders (1) .
+
+Although highly effective treatments for anxiety disorders exist, only about 1 in 4 people in need (27.6%) receive any treatment (2) . Barriers to care include lack of awareness that this is a treatable health condition, lack of investment in mental health services, lack of trained health-care providers, and social stigma.
+
+## Symptoms and patterns
+
+People with an anxiety disorder may experience excessive fear or worry about a specific situation (for example, a panic attack or social situation) or, in the case of generalized anxiety disorder, about a broad range of everyday situations. They typically experience these symptoms over an extended period – at least several months. Usually they avoid the situations that make them anxious.
+
+Other symptoms of anxiety disorders may include:
+
+trouble concentrating or making decisions
+
+feeling irritable, tense or restless
+
+experiencing nausea or abdominal distress
+
+having heart palpitations
+
+sweating, trembling or shaking
+
+having a sense of impending danger, panic or doom.
+
+Anxiety disorders increase the risk for depression and substance use disorders as well as the risk of suicidal thoughts and behaviours.
+
+There are several different kinds of anxiety disorders, including:
+
+generalized anxiety disorder (persistent and excessive worry about daily activities or events);
+
+panic disorder (panic attacks and fear of continued panic attacks);
+
+social anxiety disorder (high levels of fear and worry about social situations that might make the person feel humiliated, embarrassed or rejected);
+
+agoraphobia (excessive fear, worry and avoidance of situations that might cause a person to panic or feel trapped, helpless or embarrassed);
+
+separation anxiety disorder (excessive fear or worry about being separated from people with whom the person has a deep emotional bond);
+
+specific phobias (intense, irrational fears of specific objects or situations that lead to avoidance behaviour and significant distress); and
+
+selective mutism (consistent inability to speak in certain social situations, despite the ability to speak comfortably in other settings, primarily affecting children).
+
+People may experience more than one anxiety disorder at the same time. Symptoms often begin during childhood or adolescence and continue into adulthood. Girls and women are more likely to experience an anxiety disorder than boys and men.
+
+## Contributing factors and prevention
+
+Anxiety disorders, like other mental health conditions, result from a complex interaction of social, psychological and biological factors. Anyone can have an anxiety disorder, but people who have lived through abuse, severe losses or other adverse experiences are more likely to develop one.
+
+Anxiety disorders are closely related to and affected by physical health. Many of the impacts of anxiety (such as physical tension, nervous system hyperactivity or harmful use of alcohol) are also known risk factors for diseases such as cardiovascular disease. In turn, people with these diseases may also find themselves experiencing anxiety disorders due to the difficulties associated with managing their conditions.
+
+Effective community-based approaches to prevent anxiety include parental education and school-based programmes to enhance social and emotional learning and build positive coping in children and adolescents. Exercise programmes can also be effective in preventing anxiety disorders in adults.
+
+## Diagnosis and treatment
+
+There are several effective treatments for anxiety disorders. People with symptoms of anxiety should seek care.
+
+Psychological interventions are essential treatments for anxiety disorders and refer primarily to talk therapy with professionals or supervised lay therapists. These interventions can help people learn new ways of thinking, coping or relating to their anxiety, to others or to the world. They can teach people how to face the situations, events, people or places that trigger their anxiety.
+
+Psychological interventions can be provided to individuals or groups, in person or online. They may also be accessed through self-help manuals, websites and apps. The psychological interventions with the most evidence for treating a range of anxiety disorders are those based on principles of cognitive-behavioural therapy. These include exposure therapy, during which people learn to face their fears.
+
+In addition, learning stress management skills, such as relaxation skills and mindfulness skills, can help reduce symptoms of anxiety disorders.
+
+Antidepressant medications, such as selective serotonin reuptake inhibitors (SSRIs), can also be useful in treating adults with anxiety disorders. Health-care providers should keep in mind the possible adverse effects associated with antidepressant medication, the ability to deliver either intervention (in terms of expertise, and/or treatment availability), and individual preferences.
+
+Benzodiazepines, which have historically been prescribed for anxiety disorders, are generally not recommended for anxiety disorders because of their high potential for dependence as well as their limited long-term effectiveness.
+
+## Self-care
+
+Self-care can play an important role in supporting treatment. To help manage your symptoms of anxiety and promote your overall well-being, you can:
+
+avoid or cut down on alcohol and don’t use illicit drugs, which can make anxiety worse;
+
+exercise regularly, even if it’s just a short walk;
+
+stick to regular eating and sleeping habits as much as possible and eat a healthy diet;
+
+learn relaxation techniques, such as slow breathing and progressive muscle relaxation; and
+
+develop the habit of mindfulness meditation, even if it’s just a few minutes per day.
+
+## WHO response
+
+WHO’s Comprehensive mental health action plan 2013–2030 highlights the steps required to provide appropriate interventions for people with mental health conditions, including anxiety disorders.
+
+Generalized anxiety disorder and panic disorder are included in the priority conditions covered by WHO’s mhGAP Programme . This programme aims to help countries increase services for people with mental, neurological and substance use disorders through care provided by health workers who are not specialists in mental health.
+
+WHO has developed brief psychological intervention manuals that may be delivered by lay therapists to individuals and groups. These interventions have been shown to be effective for multiple mental health problems, including anxiety and depression. An example is the Problem Management Plus (PM+) manual , which is based on principles of cognitive behavioural therapy and uses techniques like stress management, problem solving treatment and strengthening social support. Additionally, the Self-Help Plus (SH+) group-based stress management course and WHO’s popular Doing What Matters in Times of Stress self-help book describe skills that can be used to reduce anxiety and stress.
+
+## References
+
+(1) 2021 Global Burden of Disease (GBD) [online database]. Seattle: Institute for Health Metrics and Evaluation; 2024 ( https://vizhub.healthdata.org/gbd-results/ , accessed 13 August 2025).
+
+(2) Alonso J, Liu Z, Evans-Lacko S, et al. Treatment gap for anxiety disorders is global: results of the World Mental Health Surveys in 21 countries. Depress Anxiety. 2018;35(3):195–208. doi:10.1002/da.22711.

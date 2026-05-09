@@ -4,6 +4,8 @@ End-to-end chatbot: safety routing, RAG context, and local LLM generation.
 
 from __future__ import annotations
 
+import inspect
+import re
 from pathlib import Path
 from typing import Any
 
@@ -22,6 +24,10 @@ from src.safety import (
     get_redirect_response,
     get_tier2_system_addon,
 )
+
+
+def strip_thinking(text: str) -> str:
+    return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
 def _load_system_prompt() -> str:
@@ -155,20 +161,31 @@ class ChatBot:
             messages.append({"role": "assistant", "content": a_prev})
         messages.append({"role": "user", "content": user_block})
 
-        prompt = self.tokenizer.apply_chat_template(
-            messages,
-            tokenize=False,
-            add_generation_prompt=True,
-        )
+        try:
+            template = self.tokenizer.get_chat_template()
+        except (ValueError, TypeError):
+            template = None
+        chat_kwargs: dict[str, Any] = {
+            "tokenize": False,
+            "add_generation_prompt": True,
+        }
+        if template and "enable_thinking" in template:
+            chat_kwargs["enable_thinking"] = False
+
+        prompt = self.tokenizer.apply_chat_template(messages, **chat_kwargs)
         inputs = self.tokenizer(prompt, return_tensors="pt").to(self.model.device)
+        gen_kwargs: dict[str, Any] = {
+            **inputs,
+            "max_new_tokens": self.max_new_tokens,
+            "do_sample": True,
+            "temperature": 0.7,
+            "top_p": 0.9,
+            "pad_token_id": self.tokenizer.eos_token_id,
+        }
+        if "enable_thinking" in inspect.signature(self.model.generate).parameters:
+            gen_kwargs["enable_thinking"] = False
         with torch.inference_mode():
-            out = self.model.generate(
-                **inputs,
-                max_new_tokens=self.max_new_tokens,
-                do_sample=True,
-                temperature=0.7,
-                top_p=0.9,
-                pad_token_id=self.tokenizer.eos_token_id,
-            )
+            out = self.model.generate(**gen_kwargs)
         gen = out[0, inputs["input_ids"].shape[-1] :]
-        return self.tokenizer.decode(gen, skip_special_tokens=True).strip()
+        decoded = self.tokenizer.decode(gen, skip_special_tokens=True).strip()
+        return strip_thinking(decoded)

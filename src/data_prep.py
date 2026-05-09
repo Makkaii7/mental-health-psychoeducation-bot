@@ -1,5 +1,6 @@
 """
-CounselChat loading, psychoeducation-oriented filtering, ChatML formatting, and splits.
+CounselChat loading, deduplication, psychoeducation-oriented filtering, ChatML formatting,
+and question-level splits (no train/test question leakage).
 """
 
 from __future__ import annotations
@@ -16,7 +17,7 @@ from sklearn.model_selection import train_test_split
 # Default Hugging Face dataset id (override via env or argument if your mirror differs).
 DEFAULT_COUNSELCHAT_ID = "nbroad/CounselChat"
 
-# Heuristic patterns suggesting deep therapy / prescriptive clinical tone (exclude from SFT).
+# Legacy / overlap with new rules (kept for extra clinical-signal drops on Q+A combined text).
 _THERAPY_EXCLUSION_PATTERNS = [
     r"\btransference\b",
     r"\bcounter-?transference\b",
@@ -36,9 +37,111 @@ _THERAPY_EXCLUSION_RE = re.compile(
     re.IGNORECASE,
 )
 
-# Prefer shorter, educational Q&A over long monologue-style therapist replies.
-_MAX_RESPONSE_CHARS = 2200
-_MIN_RESPONSE_CHARS = 40
+_MIN_ANSWER_CHARS = 100
+_MAX_ANSWER_CHARS = 2000
+
+_DIRECTIVE_PHRASES = (
+    "you should",
+    "you must",
+    "you need to",
+    "you have to",
+    "i recommend",
+    "i suggest",
+    "i would advise",
+)
+
+_TOPIC_CLINICAL_RE = re.compile(
+    r"(diagnos|medication|substance|addiction)",
+    re.IGNORECASE,
+)
+
+_BONUS_TERMS = (
+    "?",
+    "think about",
+    "consider",
+    "reflect",
+    "notice",
+    "what do you",
+    "how does",
+    "many people",
+    "it's common",
+    "its common",
+    "research shows",
+    "one way to think about",
+)
+
+_PENALTY_TERMS = (
+    "i diagnose",
+    "your condition",
+    "your disorder",
+    "take medication",
+    "prescribe",
+    "in my clinical experience",
+    "as your therapist",
+)
+
+
+def _directive_hit_count(answer: str) -> int:
+    al = answer.lower()
+    return sum(al.count(p) for p in _DIRECTIVE_PHRASES)
+
+
+def _psychoeducation_fit_score(answer: str) -> int:
+    al = answer.lower()
+    score = 0
+    for t in _BONUS_TERMS:
+        if t in al:
+            score += 1
+    for t in _PENALTY_TERMS:
+        if t in al:
+            score -= 2
+    return score
+
+
+def _purely_informational_answer(answer: str) -> bool:
+    """Loose heuristic: long-ish neutral/educational tone without strong prescription."""
+    al = answer.lower()
+    if len(answer) < 250:
+        return False
+    if _directive_hit_count(answer) >= 2:
+        return False
+    if any(p in al for p in ("research", "studies show", "according to", "psychoeducation", "coping skill")):
+        return True
+    return _psychoeducation_fit_score(answer) >= 4
+
+
+def _topic_clinical_drop(topic: str, answer: str) -> bool:
+    """
+    Return True if this row should be REMOVED due to clinical topic slug,
+    unless answer looks purely informational.
+    """
+    t = (topic or "").lower()
+    if not _TOPIC_CLINICAL_RE.search(t):
+        return False
+    if _purely_informational_answer(answer):
+        return False
+    return True
+
+
+def _row_passes_filter(
+    answer: str,
+    question: str,
+    topic: str,
+    *,
+    require_fit_score: bool,
+) -> bool:
+    qa = f"{question}\n{answer}"
+    if _THERAPY_EXCLUSION_RE.search(qa):
+        return False
+    if len(answer) < _MIN_ANSWER_CHARS or len(answer) > _MAX_ANSWER_CHARS:
+        return False
+    if _directive_hit_count(answer) >= 3:
+        return False
+    if _topic_clinical_drop(topic, answer):
+        return False
+    if require_fit_score and _psychoeducation_fit_score(answer) < 0:
+        return False
+    return True
 
 
 def load_counselchat(
@@ -46,12 +149,14 @@ def load_counselchat(
     split: str | None = None,
 ) -> pd.DataFrame:
     """
-    Load CounselChat from Hugging Face and normalize to columns: question, answer (str).
+    Load CounselChat from Hugging Face.
+
+    Normalized columns: ``question``, ``answer``, ``upvotes`` (int), ``topic`` (str).
+    Drops rows with empty question or answer after strip.
     """
     ds = load_dataset(dataset_id) if split is None else load_dataset(dataset_id, split=split)
 
     if isinstance(ds, DatasetDict):
-        # Prefer train if present; else first split.
         if "train" in ds:
             frame = ds["train"].to_pandas()
         else:
@@ -61,13 +166,26 @@ def load_counselchat(
         frame = ds.to_pandas()
 
     col_map = {c.lower(): c for c in frame.columns}
-    q_col = col_map.get("question") or col_map.get("user") or col_map.get("input")
-    a_col = col_map.get("answer") or col_map.get("response") or col_map.get("output")
+    q_col = (
+        col_map.get("question")
+        or col_map.get("user")
+        or col_map.get("input")
+        or col_map.get("questiontext")
+    )
+    a_col = (
+        col_map.get("answer")
+        or col_map.get("response")
+        or col_map.get("output")
+        or col_map.get("answertext")
+    )
     if not q_col or not a_col:
         raise ValueError(
             f"Could not infer question/answer columns from: {list(frame.columns)}. "
             "Adjust load_counselchat() for your dataset schema."
         )
+
+    up_col = col_map.get("upvotes")
+    topic_col = col_map.get("topic")
 
     out = pd.DataFrame(
         {
@@ -75,26 +193,70 @@ def load_counselchat(
             "answer": frame[a_col].astype(str).str.strip(),
         }
     )
+    if up_col:
+        out["upvotes"] = pd.to_numeric(frame[up_col], errors="coerce").fillna(-1).astype(int)
+    else:
+        out["upvotes"] = -1
+    if topic_col:
+        out["topic"] = frame[topic_col].fillna("").astype(str).str.strip()
+    else:
+        out["topic"] = ""
+
     out = out[(out["question"].str.len() > 0) & (out["answer"].str.len() > 0)]
     return out.reset_index(drop=True)
 
 
+def deduplicate_best_answer_per_question(df: pd.DataFrame) -> pd.DataFrame:
+    """
+    One row per ``question``: highest ``upvotes``; ties / missing upvotes → longest answer
+    among rows that pass the structural filter **without** the psychoeducation fit score (tie-break).
+    """
+    if df.empty:
+        return df
+
+    def _pick_group(g: pd.DataFrame) -> pd.DataFrame:
+        g = g.reset_index(drop=True)
+        u = g["upvotes"].astype(int)
+        max_u = int(u.max())
+        if max_u < 0:
+            candidates = g
+        else:
+            candidates = g.loc[u == max_u].copy()
+        if len(candidates) == 1:
+            return candidates
+        weak_ok = candidates.apply(
+            lambda r: _row_passes_filter(
+                r["answer"],
+                r["question"],
+                str(r["topic"]) if "topic" in r.index else "",
+                require_fit_score=False,
+            ),
+            axis=1,
+        )
+        passed = candidates.loc[weak_ok]
+        if len(passed):
+            idx = passed["answer"].str.len().idxmax()
+            return passed.loc[[idx]]
+        idx = candidates["answer"].str.len().idxmax()
+        return candidates.loc[[idx]]
+
+    parts = [_pick_group(g) for _, g in df.groupby("question", sort=False)]
+    return pd.concat(parts, ignore_index=True)
+
+
 def filter_psychoeducation(df: pd.DataFrame) -> pd.DataFrame:
     """
-    Keep rows that look like psychoeducation-style Q&A; drop deep therapy / prescriptive rows.
+    Strong psychoeducation-oriented filter (length, directives, topic, fit score).
     """
-    def _keep_row(answer: str, question: str) -> bool:
-        text = f"{question}\n{answer}"
-        if _THERAPY_EXCLUSION_RE.search(text):
-            return False
-        if len(answer) > _MAX_RESPONSE_CHARS or len(answer) < _MIN_RESPONSE_CHARS:
-            return False
-        # Penalize very directive imperatives in therapist voice.
-        if answer.lower().count("you must ") + answer.lower().count("you need to ") > 2:
-            return False
-        return True
-
-    mask = df.apply(lambda r: _keep_row(r["answer"], r["question"]), axis=1)
+    mask = df.apply(
+        lambda r: _row_passes_filter(
+            r["answer"],
+            r["question"],
+            str(r["topic"]) if "topic" in r.index else "",
+            require_fit_score=True,
+        ),
+        axis=1,
+    )
     return df.loc[mask].reset_index(drop=True)
 
 
@@ -162,16 +324,47 @@ def split_dataset(
     test_ratio: float = 0.1,
     seed: int = 42,
 ) -> tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
-    """Stratify-free random split 80/10/10 (adjust if you add labels for stratification)."""
+    """
+    Split by **unique question text** (80/10/10): all rows for a question live in one split only.
+    """
     if not abs(train_ratio + val_ratio + test_ratio - 1.0) < 1e-6:
         raise ValueError("train_ratio + val_ratio + test_ratio must sum to 1.0")
 
-    train_df, temp_df = train_test_split(
-        df, test_size=(1.0 - train_ratio), random_state=seed
+    questions = pd.Series(df["question"].unique())
+    q_train, q_temp = train_test_split(
+        questions,
+        test_size=(1.0 - train_ratio),
+        random_state=seed,
     )
     val_size = val_ratio / (val_ratio + test_ratio)
-    val_df, test_df = train_test_split(temp_df, test_size=(1.0 - val_size), random_state=seed)
-    return train_df.reset_index(drop=True), val_df.reset_index(drop=True), test_df.reset_index(drop=True)
+    q_val, q_test = train_test_split(
+        q_temp,
+        test_size=(1.0 - val_size),
+        random_state=seed,
+    )
+    train_set = set(q_train)
+    val_set = set(q_val)
+    test_set = set(q_test)
+    overlap_tv = train_set & val_set
+    overlap_tt = train_set & test_set
+    overlap_vt = val_set & test_set
+    if overlap_tv or overlap_tt or overlap_vt:
+        raise RuntimeError(f"Question split overlap: {overlap_tv | overlap_tt | overlap_vt}")
+
+    def _assign(q: str) -> str:
+        if q in train_set:
+            return "train"
+        if q in val_set:
+            return "val"
+        if q in test_set:
+            return "test"
+        raise KeyError(q)
+
+    split_col = df["question"].map(_assign)
+    train_df = df.loc[split_col == "train"].reset_index(drop=True)
+    val_df = df.loc[split_col == "val"].reset_index(drop=True)
+    test_df = df.loc[split_col == "test"].reset_index(drop=True)
+    return train_df, val_df, test_df
 
 
 def save_splits(
@@ -190,3 +383,75 @@ def save_splits(
 def dataframe_to_hf_dataset(df: pd.DataFrame) -> Dataset:
     """Convert pandas DataFrame (with `text` column) to HF Dataset for TRL."""
     return Dataset.from_pandas(df, preserve_index=False)
+
+
+def run_full_preprocessing_pipeline(
+    dataset_id: str = DEFAULT_COUNSELCHAT_ID,
+    out_dir: str | Path | None = None,
+    config_path: str | Path | None = None,
+) -> dict[str, Any]:
+    """
+    load → dedup → filter → format_chatml → question-level split → save CSV + HF datasets.
+    Returns a dict of counts and sample rows for logging.
+    """
+    root = Path(__file__).resolve().parents[1]
+    out_dir = Path(out_dir) if out_dir else root / "data" / "processed"
+    cfg_path = Path(config_path) if config_path else root / "config" / "config.yaml"
+
+    raw = load_counselchat(dataset_id)
+    n_after_load = len(raw)
+    deduped = deduplicate_best_answer_per_question(raw)
+    n_after_dedup = len(deduped)
+    filtered = filter_psychoeducation(deduped)
+    n_after_filter = len(filtered)
+
+    fmt = format_chatml(filtered.copy(), config_path=cfg_path)
+    train_df, val_df, test_df = split_dataset(fmt)
+    save_splits(train_df, val_df, test_df, out_dir)
+
+    def _for_hf(d: pd.DataFrame) -> pd.DataFrame:
+        cols = [c for c in ("question", "answer", "text", "topic", "upvotes") if c in d.columns]
+        return d[cols].copy()
+
+    dataframe_to_hf_dataset(_for_hf(train_df)).save_to_disk(str(out_dir / "train_hf"))
+    dataframe_to_hf_dataset(_for_hf(val_df)).save_to_disk(str(out_dir / "val_hf"))
+    dataframe_to_hf_dataset(_for_hf(test_df)).save_to_disk(str(out_dir / "test_hf"))
+
+    # leakage check: question sets disjoint
+    qt = set(train_df["question"])
+    qv = set(val_df["question"])
+    qe = set(test_df["question"])
+    leakage = (qt & qv) | (qt & qe) | (qv & qe)
+
+    kf = set(zip(filtered["question"], filtered["answer"]))
+    filter_removed = deduped[~deduped.apply(lambda r: (r["question"], r["answer"]) in kf, axis=1)]
+    n_removed = len(filter_removed)
+    removed_sample = filter_removed.sample(n=min(3, n_removed), random_state=42) if n_removed else pd.DataFrame()
+    kept_sample = filtered.sample(n=min(3, len(filtered)), random_state=41) if len(filtered) else pd.DataFrame()
+
+    def _short_rows(frame: pd.DataFrame) -> list[dict]:
+        out = []
+        for _, r in frame.iterrows():
+            out.append(
+                {
+                    "topic": (str(r["topic"]) if "topic" in r.index else ""),
+                    "upvotes": int(r["upvotes"]) if "upvotes" in r.index else -1,
+                    "question": str(r["question"])[:220] + ("..." if len(str(r["question"])) > 220 else ""),
+                    "answer": str(r["answer"])[:280] + ("..." if len(str(r["answer"])) > 280 else ""),
+                }
+            )
+        return out
+
+    return {
+        "n_after_load": n_after_load,
+        "n_after_dedup": n_after_dedup,
+        "n_after_filter": n_after_filter,
+        "train": len(train_df),
+        "val": len(val_df),
+        "test": len(test_df),
+        "leakage_questions": list(leakage),
+        "kept_examples_preview": _short_rows(kept_sample),
+        "removed_examples_preview": _short_rows(removed_sample),
+        "dedup_removed_count": n_after_load - n_after_dedup,
+        "filter_removed_count": n_after_dedup - n_after_filter,
+    }

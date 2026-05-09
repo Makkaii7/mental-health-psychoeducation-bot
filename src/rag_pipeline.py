@@ -9,9 +9,11 @@ import warnings
 from pathlib import Path
 from typing import Sequence
 
-from langchain_chroma import Chroma
+# Import HuggingFaceEmbeddings before Chroma: on some Windows/Python builds,
+# loading chromadb before sentence-transformers/torch can cause a native crash.
 from langchain_core.documents import Document
 from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_chroma import Chroma
 
 try:
     from langchain_text_splitters import RecursiveCharacterTextSplitter
@@ -83,8 +85,8 @@ def create_vectorstore(
 
 
 def load_vectorstore(
-    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
     persist_directory: str | Path = "chroma_db",
+    embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2",
     collection_name: str = "psychoeducation",
 ) -> Chroma:
     embeddings = HuggingFaceEmbeddings(model_name=embedding_model)

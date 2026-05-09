@@ -32,28 +32,17 @@ pip install -r requirements.txt
 
 3. **Unsloth** / **bitsandbytes** builds are platform-specific; if install fails on Windows, follow Unsloth’s current install notes or run training on Linux/WSL with a supported GPU stack.
 
-4. Prepare data (from project root):
+4. Prepare data (from project root) — **recommended one-shot pipeline** (load → dedupe by question/upvotes → strong filter → ChatML → **question-level** 80/10/10 split → save):
 
 ```python
-from pathlib import Path
-from datasets import Dataset
-from src.data_prep import (
-    filter_psychoeducation,
-    format_chatml,
-    load_counselchat,
-    save_splits,
-    split_dataset,
-    dataframe_to_hf_dataset,
-)
+from src.data_prep import run_full_preprocessing_pipeline
 
-df = load_counselchat()
-df = filter_psychoeducation(df)
-df = format_chatml(df)  # uses Qwen tokenizer from config/model card (matches inference chat template)
-train_df, val_df, test_df = split_dataset(df)
-save_splits(train_df, val_df, test_df, Path("data/processed"))
-dataframe_to_hf_dataset(train_df).save_to_disk("data/processed/train_hf")
-dataframe_to_hf_dataset(val_df).save_to_disk("data/processed/val_hf")
+run_full_preprocessing_pipeline("nbertagnolli/counsel-chat")  # or DEFAULT id from config
 ```
+
+Or step-by-step: `load_counselchat` → `deduplicate_best_answer_per_question` → `filter_psychoeducation` → `format_chatml` → `split_dataset` → `save_splits` / `dataframe_to_hf_dataset(...).save_to_disk(...)`.
+
+**Leakage note:** `split_dataset` assigns splits by **unique question text**, so the same question never appears in train and val/test.
 
 5. **RAG corpus:** Add `.txt` / `.md` psychoeducation files under `data/rag_corpus/`. If the folder is empty, the app still runs with **no retrieved context** (RAG skipped until you add files and rebuild `chroma_db/`).
 
@@ -62,6 +51,28 @@ dataframe_to_hf_dataset(val_df).save_to_disk("data/processed/val_hf")
 ```bash
 python src/fine_tune.py --dataset data/processed/train_hf --eval_dataset data/processed/val_hf --output checkpoints/lora_adapter
 ```
+
+## Pretrained LoRA adapter
+
+The fine-tuned adapter is published privately on Hugging Face Hub at
+[`Makkaii/qwen3-8b-psychoed-lora`](https://huggingface.co/Makkaii/qwen3-8b-psychoed-lora)
+(Qwen3-8B QLoRA on filtered CounselChat). It is **not** committed to this repo.
+To use it, either download it locally to `checkpoints/lora_adapter/` (via
+`huggingface-cli download Makkaii/qwen3-8b-psychoed-lora --local-dir checkpoints/lora_adapter`)
+or load it directly through `peft.PeftModel.from_pretrained(base, "Makkaii/qwen3-8b-psychoed-lora")`.
+
+## RAG corpus
+
+`scripts/download_rag_corpus.py` downloads 17 psychoeducation documents
+(NIMH, WHO, CDC, MedlinePlus — public-domain or openly licensed) into
+`data/rag_corpus/`. Run from project root:
+
+```bash
+python scripts/download_rag_corpus.py
+```
+
+Each file carries a metadata header (title, source URL, date accessed, license).
+Re-runs overwrite existing files; failures on individual sources are logged and skipped.
 
 ## Usage
 
