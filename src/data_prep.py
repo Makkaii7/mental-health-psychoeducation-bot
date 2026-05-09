@@ -6,7 +6,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Iterable
+from typing import Any
 
 import pandas as pd
 from datasets import Dataset, DatasetDict, load_dataset
@@ -111,23 +111,45 @@ def _default_system_prompt() -> str:
 
 def format_chatml(
     df: pd.DataFrame,
+    tokenizer: Any | None = None,
+    model_name: str | None = None,
     system_prompt: str | None = None,
     text_column: str = "text",
+    config_path: str | Path | None = None,
 ) -> pd.DataFrame:
     """
-    Add a `text` column in ChatML-style multi-turn format for SFT (system + user + assistant).
+    Add a ``text`` column using the model tokenizer's ``apply_chat_template`` (matches inference).
     """
+    from transformers import AutoTokenizer
+
+    root = Path(__file__).resolve().parents[1]
+    cfg_file = Path(config_path) if config_path else root / "config" / "config.yaml"
+    if tokenizer is None:
+        if model_name is None and cfg_file.is_file():
+            import yaml
+
+            cfg = yaml.safe_load(cfg_file.read_text(encoding="utf-8")) or {}
+            model_name = (cfg.get("model") or {}).get("name", "Qwen/Qwen3-8B")
+        if model_name is None:
+            model_name = "Qwen/Qwen3-8B"
+        tokenizer = AutoTokenizer.from_pretrained(model_name, trust_remote_code=True)
+
     sys = system_prompt or _default_system_prompt()
     rows: list[str] = []
     for _, r in df.iterrows():
-        user = r["question"].replace("<|im_start|>", "").replace("<|im_end|>", "")
-        assistant = r["answer"].replace("<|im_start|>", "").replace("<|im_end|>", "")
-        chatml = (
-            f"<|im_start|>system\n{sys}<|im_end|>\n"
-            f"<|im_start|>user\n{user}<|im_end|>\n"
-            f"<|im_start|>assistant\n{assistant}<|im_end|>"
+        user = str(r["question"]).strip()
+        assistant = str(r["answer"]).strip()
+        messages = [
+            {"role": "system", "content": sys},
+            {"role": "user", "content": user},
+            {"role": "assistant", "content": assistant},
+        ]
+        text = tokenizer.apply_chat_template(
+            messages,
+            tokenize=False,
+            add_generation_prompt=False,
         )
-        rows.append(chatml)
+        rows.append(text)
     out = df.copy()
     out[text_column] = rows
     return out

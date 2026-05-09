@@ -1,20 +1,33 @@
-# Tier 1 — In scope (full engagement)
-# Pattern: brief acknowledgement → reflective question → optional light psychoeducation framing
+# Psychoeducation bot — tier templates (YAML). Loaded by src/safety.py
+# crisis_response supports {estijaba}, {hope_line}, {emergency}
 
-TIER1_OPENING: "Thanks for sharing that. To understand better, what feels most salient for you right now?"
-TIER1_FOLLOWUP: "What have you already tried, and what felt helpful or unhelpful about it?"
+crisis_response: |-
+  I'm really concerned about what you've shared. This chatbot is not able to assess risk or keep you safe.
+  Please contact a trained responder or emergency service right now:
+  - Estijaba (mental health support): {estijaba}
+  - HOPE Line: {hope_line}
+  - Emergency (immediate danger): {emergency}
+  If you can, stay with someone you trust while you reach out.
 
-# Tier 2 — In scope with care (grounded, safety-aware tone)
-# Pattern: acknowledge → duration + intensity → reflect or escalate
+redirect_response: |-
+  I can't provide therapy, diagnoses, or medical advice, and I won't tell you what you
+  must do. I can still help with psychoeducation-style reflection: exploring how stress
+  shows up in the body and mind, values, coping ideas, and questions that help you think
+  clearly. What part of your situation feels safest to explore in that way?
 
-TIER2_ACK: "I'm sorry you're carrying this — it sounds heavy."
-TIER2_CHECK: "How long has this been going on, and how intense does it feel day to day (e.g., mild / moderate / severe for you)?"
-TIER2_REFLECT: "Given what you said about duration and intensity, what would 'a little more safety' look like in the next 24 hours for you?"
+tier2_system_addon: |-
+  The user may be distressed (low mood, anxiety, overwhelm, or similar). In this mode:
+  1) Acknowledge briefly and warmly (one sentence).
+  2) Ask about duration and intensity in a gentle, non-clinical way (soft safety check).
+  3) Based on their answer, reflect, offer psychoeducation framing, or encourage professional support if appropriate.
+  Stay Socratic and non-directive; never diagnose or prescribe.
 
-# Tier 3 — Out of scope (gentle redirect)
+tier1_opening: "Thanks for sharing that. To understand better, what feels most salient for you right now?"
+tier1_followup: "What have you already tried, and what felt helpful or unhelpful about it?"
 
-TIER3_REDIRECT: "I can't provide therapy, diagnoses, or medical advice. I can help you think in a psychoeducation way — exploring concepts, values, and coping ideas — or point you to professional support if that's what you need."
+tier2_ack: "I'm sorry you're carrying this — it sounds heavy."
+tier2_check: "How long has this been going on, and how intense does it feel day to day (e.g., mild / moderate / severe for you)?"
+tier2_reflect: "Given what you said about duration and intensity, what would 'a little more safety' look like in the next 24 hours for you?"
 
-# Tier 4 — Crisis (resources + stop normal chat)
-
-TIER4_CRISIS: "I'm really concerned about what you've shared. This tool isn't able to keep you safe. Please reach out now to a human who can help: Estijaba 800 1717, HOPE Line 800 4673, or Emergency 999 if you are in immediate danger. If you can, stay with someone you trust while you make contact."
+tier4_crisis_inline: |-
+  I'm really concerned about what you've shared. This tool isn't able to keep you safe. Please reach out now to a human who can help: Estijaba {estijaba}, HOPE Line {hope_line}, or Emergency {emergency} if you are in immediate danger. If you can, stay with someone you trust while you make contact.

@@ -1,6 +1,6 @@
 """
 QLoRA fine-tuning with Unsloth + PEFT + TRL (SFTTrainer).
-Run on a CUDA GPU (e.g., RTX 5080). Requires `unsloth` compatible with your torch build.
+Run on a CUDA GPU (e.g., RTX 5080). Requires ``unsloth`` compatible with your torch build.
 """
 
 from __future__ import annotations
@@ -10,6 +10,7 @@ from pathlib import Path
 
 import yaml
 from datasets import load_from_disk
+from transformers import EarlyStoppingCallback
 from trl import SFTConfig, SFTTrainer
 from unsloth import FastLanguageModel
 from unsloth import is_bfloat16_supported
@@ -24,6 +25,11 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", default="config/config.yaml")
     parser.add_argument("--dataset", default="data/processed/train_hf", help="HF Dataset on disk with `text` field")
+    parser.add_argument(
+        "--eval_dataset",
+        default="data/processed/val_hf",
+        help="HF validation set on disk (optional; early stopping disabled if missing)",
+    )
     parser.add_argument("--output", default="checkpoints/lora_adapter")
     args = parser.parse_args()
 
@@ -63,8 +69,14 @@ def main() -> None:
     )
 
     train_dataset = load_from_disk(args.dataset)
+    eval_path = Path(args.eval_dataset)
+    eval_dataset = load_from_disk(str(eval_path)) if eval_path.exists() else None
 
-    sft_config = SFTConfig(
+    callbacks = []
+    if eval_dataset is not None:
+        callbacks.append(EarlyStoppingCallback(early_stopping_patience=2))
+
+    sft_kwargs = dict(
         output_dir=args.output,
         num_train_epochs=float(t.get("epochs", 3)),
         per_device_train_batch_size=int(t["batch_size"]),
@@ -80,14 +92,33 @@ def main() -> None:
         max_seq_length=max_seq_length,
         dataset_text_field="text",
         report_to="none",
+        save_steps=100,
+        save_total_limit=3,
     )
 
-    trainer = SFTTrainer(
+    if eval_dataset is not None:
+        sft_kwargs.update(
+            eval_strategy="steps",
+            eval_steps=100,
+            load_best_model_at_end=True,
+            metric_for_best_model="eval_loss",
+            greater_is_better=False,
+        )
+    else:
+        sft_kwargs["eval_strategy"] = "no"
+
+    sft_config = SFTConfig(**sft_kwargs)
+
+    trainer_kwargs: dict = dict(
         model=model,
         tokenizer=tokenizer,
         train_dataset=train_dataset,
         args=sft_config,
+        callbacks=callbacks,
     )
+    if eval_dataset is not None:
+        trainer_kwargs["eval_dataset"] = eval_dataset
+    trainer = SFTTrainer(**trainer_kwargs)
     trainer.train()
     Path(args.output).mkdir(parents=True, exist_ok=True)
     model.save_pretrained(args.output)

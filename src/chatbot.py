@@ -12,12 +12,15 @@ import yaml
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-from src.rag_pipeline import format_context, load_vectorstore, retrieve
+from src.rag_pipeline import format_context, retrieve
 from src.safety import (
     StickySession,
+    Tier,
     classify_tier,
+    get_crisis_keywords,
     get_crisis_response,
     get_redirect_response,
+    get_tier2_system_addon,
 )
 
 
@@ -63,6 +66,10 @@ def load_model(
 
 
 class ChatBot:
+    """Shared model/RAG; **StickySession must be supplied per user** (e.g. ``gr.State``)."""
+
+    _MAX_HISTORY_TURNS = 5
+
     def __init__(
         self,
         model,
@@ -79,35 +86,75 @@ class ChatBot:
         self.system_prompt = system_prompt or _load_system_prompt()
         cfg = load_config(config_path)
         self.top_k = int(cfg.get("rag", {}).get("top_k", top_k))
-        sticky_on = bool(cfg.get("safety", {}).get("enable_sticky_crisis", True))
-        self.session = StickySession(enable_sticky=sticky_on)
         self.max_new_tokens = max_new_tokens
+        self._crisis_keywords = get_crisis_keywords()
+        self._tier2_addon = get_tier2_system_addon()
 
-    def respond(self, user_message: str) -> str:
-        if self.session.blocked_from_normal_chat():
+    def respond(
+        self,
+        user_message: str,
+        session: StickySession,
+        history: list | None = None,
+    ) -> str:
+        history = history or []
+        if session.blocked_from_normal_chat():
             return get_crisis_response()
 
-        tier = classify_tier(user_message)
-        self.session.note_tier(tier)
+        tier = classify_tier(user_message, crisis_keywords=self._crisis_keywords)
+        session.note_tier(tier)
 
         if tier == 4:
             return get_crisis_response()
         if tier == 3:
             return get_redirect_response()
 
-        chunks = retrieve(self.vectorstore, user_message, k=self.top_k)
+        if self.vectorstore is None:
+            chunks = []
+        else:
+            chunks = retrieve(self.vectorstore, user_message, k=self.top_k)
         context = format_context(chunks)
-        return self._generate(user_message, context)
+        return self._generate(user_message, context, tier, history)
 
-    def _generate(self, user_message: str, context: str) -> str:
-        user_block = (
-            f"Retrieved psychoeducation context (may be incomplete; do not invent facts beyond it):\n{context}\n\n"
-            f"User message:\n{user_message}"
-        )
-        messages = [
-            {"role": "system", "content": self.system_prompt},
-            {"role": "user", "content": user_block},
-        ]
+    def _build_system_content(self, tier: Tier) -> str:
+        base = self.system_prompt
+        if tier == 2:
+            return f"{base}\n\n---\nAdditional mode (in-scope with care):\n{self._tier2_addon}"
+        return base
+
+    def _history_slice(self, history: list) -> list[tuple[str, str]]:
+        """Gradio history: list of (user, assistant) tuples."""
+        if not history:
+            return []
+        tail = history[-self._MAX_HISTORY_TURNS :]
+        out: list[tuple[str, str]] = []
+        for turn in tail:
+            if isinstance(turn, (list, tuple)) and len(turn) >= 2:
+                out.append((str(turn[0]), str(turn[1])))
+        return out
+
+    def _generate(
+        self,
+        user_message: str,
+        context: str,
+        tier: Tier,
+        history: list,
+    ) -> str:
+        ctx_block = context.strip() if context.strip() else ""
+        if not ctx_block:
+            ctx_note = (
+                "Retrieved context: (none — no relevant passages were retrieved or the corpus is empty.)"
+            )
+        else:
+            ctx_note = "Retrieved psychoeducation context:\n" + ctx_block
+
+        user_block = f"{ctx_note}\n\nCurrent user message:\n{user_message}"
+
+        messages: list[dict[str, str]] = [{"role": "system", "content": self._build_system_content(tier)}]
+        for u_prev, a_prev in self._history_slice(history):
+            messages.append({"role": "user", "content": u_prev})
+            messages.append({"role": "assistant", "content": a_prev})
+        messages.append({"role": "user", "content": user_block})
+
         prompt = self.tokenizer.apply_chat_template(
             messages,
             tokenize=False,
