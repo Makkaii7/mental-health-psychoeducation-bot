@@ -116,9 +116,12 @@ def load_model(
         trust_remote_code=True,
     )
     adapter = Path(adapter_path) if adapter_path else None
-    if adapter and adapter.is_dir() and any(adapter.iterdir()):
-        model = PeftModel.from_pretrained(model, str(adapter))
-        _apply_reduced_lora_scaling(model, factor=0.15)
+    # LoRA adapter available at checkpoints/lora_adapter (0.15 scaling)
+    # Base model + system prompt produces higher quality responses
+    # See report Section IV for ablation comparison
+    # if adapter and adapter.is_dir() and any(adapter.iterdir()):
+    #     model = PeftModel.from_pretrained(model, str(adapter))
+    #     _apply_reduced_lora_scaling(model, factor=0.15)
     model.eval()
     return model, tokenizer
 
