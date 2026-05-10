@@ -136,6 +136,12 @@ class ChatBot:
         if tier == 3:
             return get_redirect_response()
 
+        if tier <= 2 and skip_rag_retrieval():
+            return (
+                "Hello! I'm a psychoeducation thinking partner. I can help you explore topics like stress, "
+                "anxiety, mood, or anything on your mind. What would you like to think through today?"
+            )
+
         if self.vectorstore is None or skip_rag_retrieval():
             chunks = []
         else:
@@ -215,7 +221,7 @@ class ChatBot:
             **inputs,
             "max_new_tokens": self.max_new_tokens,
             "do_sample": True,
-            "temperature": 0.7,
+            "temperature": 0.5,
             "top_p": 0.9,
             "repetition_penalty": 1.3,
             "no_repeat_ngram_size": 4,
