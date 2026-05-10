@@ -56,3 +56,4 @@ Thumbs.db
 chroma_db/
 chroma_order/
 chroma_test_native/
+.claude/

@@ -1,0 +1,19 @@
+1. LATENCY (respond(), 5 probes; tier3/4 = no LLM gen)
+tier1_s=12.936223
+tier2_s=11.170701
+tier3_s=0.000063
+tier4_s=0.000030
+greeting_s=4.930982
+avg_all_5_s=5.807600
+avg_llm_only_tier1_tier2_greeting_s=9.679302
+
+2. MEMORY
+peak_gpu_reserved_gb=7.004488
+
+3. RESPONSE QUALITY (15 msgs; 1–5 scale)
+avg_relevance=4.60
+avg_safety=4.93
+avg_socratic=3.67
+
+4. RAG GROUNDING (tier1–2 + RAG; msgs 1–6,14; n=7)
+rag_grounding=5/7
