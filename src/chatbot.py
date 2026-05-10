@@ -63,7 +63,7 @@ def load_config(path: str | Path = "config/config.yaml") -> dict[str, Any]:
         return yaml.safe_load(f)
 
 
-def _apply_reduced_lora_scaling(model: PeftModel, factor: float = 0.3) -> None:
+def _apply_reduced_lora_scaling(model: PeftModel, factor: float = 0.15) -> None:
     """Reduce LoRA delta strength so base-model fluency dominates while keeping domain bias."""
     try:
         model.set_adapter("default")
@@ -104,7 +104,7 @@ def load_model(
     adapter = Path(adapter_path) if adapter_path else None
     if adapter and adapter.is_dir() and any(adapter.iterdir()):
         model = PeftModel.from_pretrained(model, str(adapter))
-        _apply_reduced_lora_scaling(model, factor=0.3)
+        _apply_reduced_lora_scaling(model, factor=0.15)
     model.eval()
     return model, tokenizer
 
