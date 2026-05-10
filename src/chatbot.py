@@ -31,6 +31,20 @@ def strip_thinking(text: str) -> str:
     return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
+def _extract_content(content: Any) -> str:
+    """Extract plain text from Gradio 6 message content which may be a dict or string."""
+    if isinstance(content, str):
+        return content
+    if isinstance(content, dict):
+        val = content.get("text", content.get("content", None))
+        if val is None:
+            return str(content)
+        return _extract_content(val)
+    if isinstance(content, list):
+        return " ".join(_extract_content(item) for item in content)
+    return str(content)
+
+
 def _filter_identity_claims(text: str) -> str:
     """Remove segments where the bot claims to be a counselor/therapist."""
     banned = [
@@ -141,6 +155,7 @@ class ChatBot:
         history: list | None = None,
     ) -> str:
         history = history or []
+        user_message = _extract_content(user_message).strip()
         if session.blocked_from_normal_chat():
             return get_crisis_response()
 
@@ -183,7 +198,7 @@ class ChatBot:
                 if not isinstance(item, dict):
                     continue
                 role = str(item.get("role", "")).strip().lower()
-                content = str(item.get("content", ""))
+                content = _extract_content(item.get("content", ""))
                 if role == "user":
                     pending_user = content
                 elif role == "assistant" and pending_user is not None:
@@ -194,7 +209,7 @@ class ChatBot:
         tail = history[-self._MAX_HISTORY_TURNS :]
         for turn in tail:
             if isinstance(turn, (list, tuple)) and len(turn) >= 2:
-                pairs.append((str(turn[0]), str(turn[1])))
+                pairs.append((_extract_content(turn[0]), _extract_content(turn[1])))
         return pairs[-self._MAX_HISTORY_TURNS :]
 
     def _generate(
