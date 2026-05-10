@@ -105,7 +105,7 @@ class ChatBot:
         vectorstore,
         system_prompt: str | None = None,
         top_k: int = 3,
-        max_new_tokens: int = 512,
+        max_new_tokens: int = 256,
         config_path: str | Path = "config/config.yaml",
     ) -> None:
         self.model = model
@@ -114,7 +114,7 @@ class ChatBot:
         self.system_prompt = system_prompt or _load_system_prompt()
         cfg = load_config(config_path)
         self.top_k = int(cfg.get("rag", {}).get("top_k", top_k))
-        self.max_new_tokens = max_new_tokens
+        self.max_new_tokens = min(256, int(max_new_tokens))
         self._crisis_keywords = get_crisis_keywords()
         self._tier2_addon = get_tier2_system_addon()
 
@@ -217,6 +217,8 @@ class ChatBot:
             "do_sample": True,
             "temperature": 0.7,
             "top_p": 0.9,
+            "repetition_penalty": 1.3,
+            "no_repeat_ngram_size": 4,
             "pad_token_id": self.tokenizer.eos_token_id,
         }
         if "enable_thinking" in inspect.signature(self.model.generate).parameters:
