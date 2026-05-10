@@ -66,6 +66,35 @@ def _filter_identity_claims(text: str) -> str:
     return out if out else text.strip()
 
 
+_EMOJI_RE = re.compile(
+    "["
+    "\U0001F600-\U0001F64F"
+    "\U0001F300-\U0001F5FF"
+    "\U0001F680-\U0001F6FF"
+    "\U0001F1E0-\U0001F1FF"
+    "\U00002702-\U000027B0"
+    "\U0001F926-\U0001F937"
+    "\U00010000-\U0010FFFF"
+    "♀-♂"
+    "☀-⭕"
+    "‍"
+    "⏏"
+    "⏩"
+    "⌚"
+    "️"
+    "〰"
+    "]+",
+    flags=re.UNICODE,
+)
+
+
+def _strip_emojis(text: str) -> str:
+    """Remove emoji and pictographic chars; collapse stray double-spaces left behind."""
+    cleaned = _EMOJI_RE.sub("", text)
+    cleaned = re.sub(r"[ \t]{2,}", " ", cleaned)
+    return cleaned.strip()
+
+
 def _load_system_prompt() -> str:
     root = Path(__file__).resolve().parents[1]
     p = root / "prompts" / "system_prompt.txt"
@@ -267,4 +296,4 @@ class ChatBot:
             out = self.model.generate(**gen_kwargs)
         gen = out[0, inputs["input_ids"].shape[-1] :]
         decoded = self.tokenizer.decode(gen, skip_special_tokens=True).strip()
-        return _filter_identity_claims(strip_thinking(decoded))
+        return _strip_emojis(_filter_identity_claims(strip_thinking(decoded)))
