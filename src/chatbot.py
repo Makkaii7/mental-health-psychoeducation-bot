@@ -31,6 +31,27 @@ def strip_thinking(text: str) -> str:
     return re.sub(r"<think>.*?</think>", "", text, flags=re.DOTALL).strip()
 
 
+def _filter_identity_claims(text: str) -> str:
+    """Remove segments where the bot claims to be a counselor/therapist."""
+    banned = [
+        "i am a licensed",
+        "i am a counselor",
+        "i am a therapist",
+        "schedule a session",
+        "i can offer a session",
+        "book an appointment",
+        "i'm a licensed",
+        "i'm a counselor",
+        "i'm a therapist",
+        "available through the end of",
+        "communicate through email",
+    ]
+    lines = text.split(". ")
+    filtered = [line for line in lines if not any(b in line.lower() for b in banned)]
+    out = ". ".join(filtered).strip()
+    return out if out else text.strip()
+
+
 def _load_system_prompt() -> str:
     root = Path(__file__).resolve().parents[1]
     p = root / "prompts" / "system_prompt.txt"
@@ -129,15 +150,30 @@ class ChatBot:
         return base
 
     def _history_slice(self, history: list) -> list[tuple[str, str]]:
-        """Gradio history: list of (user, assistant) tuples."""
+        """Last N turns as (user, assistant). Supports Gradio 6 ``type='messages'`` dicts or legacy tuples."""
         if not history:
             return []
+        pairs: list[tuple[str, str]] = []
+        if isinstance(history[0], dict):
+            tail_msgs = history[-(self._MAX_HISTORY_TURNS * 2) :]
+            pending_user: str | None = None
+            for item in tail_msgs:
+                if not isinstance(item, dict):
+                    continue
+                role = str(item.get("role", "")).strip().lower()
+                content = str(item.get("content", ""))
+                if role == "user":
+                    pending_user = content
+                elif role == "assistant" and pending_user is not None:
+                    pairs.append((pending_user, content))
+                    pending_user = None
+            return pairs[-self._MAX_HISTORY_TURNS :]
+
         tail = history[-self._MAX_HISTORY_TURNS :]
-        out: list[tuple[str, str]] = []
         for turn in tail:
             if isinstance(turn, (list, tuple)) and len(turn) >= 2:
-                out.append((str(turn[0]), str(turn[1])))
-        return out
+                pairs.append((str(turn[0]), str(turn[1])))
+        return pairs[-self._MAX_HISTORY_TURNS :]
 
     def _generate(
         self,
@@ -189,4 +225,4 @@ class ChatBot:
             out = self.model.generate(**gen_kwargs)
         gen = out[0, inputs["input_ids"].shape[-1] :]
         decoded = self.tokenizer.decode(gen, skip_special_tokens=True).strip()
-        return strip_thinking(decoded)
+        return _filter_identity_claims(strip_thinking(decoded))
