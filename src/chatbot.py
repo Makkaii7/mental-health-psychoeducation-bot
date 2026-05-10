@@ -95,6 +95,16 @@ def _strip_emojis(text: str) -> str:
     return cleaned.strip()
 
 
+def _simplify_markdown(text: str) -> str:
+    """Remove heavy markdown formatting for cleaner display."""
+    text = re.sub(r"\*\*(.+?)\*\*", r"\1", text)
+    text = re.sub(r"^#{1,4}\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^>\s+", "", text, flags=re.MULTILINE)
+    text = re.sub(r"^---+$", "", text, flags=re.MULTILINE)
+    text = re.sub(r"\n{3,}", "\n\n", text)
+    return text.strip()
+
+
 def _load_system_prompt() -> str:
     root = Path(__file__).resolve().parents[1]
     p = root / "prompts" / "system_prompt.txt"
@@ -296,4 +306,4 @@ class ChatBot:
             out = self.model.generate(**gen_kwargs)
         gen = out[0, inputs["input_ids"].shape[-1] :]
         decoded = self.tokenizer.decode(gen, skip_special_tokens=True).strip()
-        return _strip_emojis(_filter_identity_claims(strip_thinking(decoded)))
+        return _simplify_markdown(_strip_emojis(_filter_identity_claims(strip_thinking(decoded))))

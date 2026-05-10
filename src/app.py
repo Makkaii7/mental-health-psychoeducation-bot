@@ -340,8 +340,7 @@ def main() -> None:
                 msg = gr.Textbox(
                     placeholder="What's on your mind? Share whatever feels comfortable...",
                     scale=5,
-                    lines=2,
-                    max_lines=6,
+                    lines=1,
                     show_label=False,
                     elem_id="mb-input",
                     container=False,
