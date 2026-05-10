@@ -9,6 +9,7 @@ from __future__ import annotations
 import logging
 import re
 import unicodedata
+from contextvars import ContextVar
 from functools import lru_cache
 from pathlib import Path
 from typing import Any, Literal
@@ -18,6 +19,9 @@ import yaml
 logger = logging.getLogger(__name__)
 
 Tier = Literal[1, 2, 3, 4]
+
+# Set True by ``classify_tier`` for short greeting-only messages so callers can skip RAG.
+_skip_rag_for_message: ContextVar[bool] = ContextVar("safety_skip_rag_for_message", default=False)
 
 CRISIS_KEYWORDS: list[str] = [
     "want to die",
@@ -61,6 +65,15 @@ _OUT_OF_SCOPE_PATTERNS = [
     r"\bbe my therapist\b",
     r"\btell me exactly what to do\b",
     r"\bgive me a treatment plan\b",
+    r"\bshould i break up\b",
+    r"\bshould i divorce\b",
+    r"\bshould i quit my job\b",
+    r"\bshould i move\b",
+    r"\bshould i leave\b",
+    r"\btell me what to do\b",
+    r"\bwhat should i do about\b",
+    r"\bmake this decision for me\b",
+    r"\bgive me advice on whether to\b",
 ]
 _OUT_OF_SCOPE_RE = re.compile("|".join(f"(?:{p})" for p in _OUT_OF_SCOPE_PATTERNS), re.IGNORECASE)
 
@@ -74,8 +87,33 @@ _WITH_CARE_PATTERNS = [
     r"\blow mood\b",
     r"\b(anxious|anxiety)\b",
     r"\blonely\b",
+    r"\bpointless\b",
+    r"\bno\s+point\b",
+    r"\bnothing\s+matters\b",
+    r"\b(don't|dont)\s+enjoy\b",
+    r"\b(can't|cant)\s+enjoy\b",
+    r"\blost\s+interest\b",
+    r"\bno\s+motivation\b",
+    r"\b(feel|feeling)\s+numb\b",
+    r"\b(can't|cant)\s+sleep\b",
+    r"\binsomnia\b",
+    r"\bnot\s+sleeping\b",
+    r"\b(can't|cant)\s+eat\b",
+    r"\bno\s+appetite\b",
+    r"\bexhausted\b",
+    r"\b(burned\s+out|burnout)\b",
 ]
 _WITH_CARE_RE = re.compile("|".join(f"(?:{p})" for p in _WITH_CARE_PATTERNS), re.IGNORECASE)
+
+# Short greeting-only → tier 1 + skip RAG (after crisis / jailbreak / out-of-scope).
+_GREETING_RE = re.compile(
+    r"^\s*(?:"
+    r"hi\b|hello\b|hey\b|howdy\b|"
+    r"good\s+morning\b|good\s+evening\b|"
+    r"what'?s\s+up\b"
+    r")",
+    re.IGNORECASE,
+)
 
 _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 _DEFAULT_PROMPTS_PATH = _PROJECT_ROOT / "prompts" / "safety_prompts.txt"
@@ -135,11 +173,30 @@ def reload_safety_caches() -> None:
     _load_safety_templates.cache_clear()
 
 
+def skip_rag_retrieval() -> bool:
+    """True if the last ``classify_tier`` call routed via short-greeting shortcut (skip RAG)."""
+    return _skip_rag_for_message.get()
+
+
+def _is_short_greeting(message: str) -> bool:
+    stripped = message.strip()
+    if not stripped:
+        return False
+    n_words = len(stripped.split())
+    if n_words >= 5:
+        return False
+    low = stripped.lower()
+    return bool(_GREETING_RE.search(low))
+
+
 def classify_tier(message: str, crisis_keywords: tuple[str, ...] | None = None) -> Tier:
     """
     Tier 4 = crisis, 3 = out-of-scope or jailbreak redirect, 2 = with care, 1 = default.
-    Order: false-positive suppress → crisis (word boundaries) → jailbreak → out-of-scope → with-care.
+    Order: false-positive suppress → crisis (word boundaries) → jailbreak → out-of-scope
+    → short greeting (tier 1, skip RAG) → with-care.
     """
+    _skip_rag_for_message.set(False)
+
     norm = normalize_message(message)
     if not norm:
         return 1
@@ -164,6 +221,9 @@ def classify_tier(message: str, crisis_keywords: tuple[str, ...] | None = None) 
         return 3
     if _OUT_OF_SCOPE_RE.search(message):
         return 3
+    if _is_short_greeting(message):
+        _skip_rag_for_message.set(True)
+        return 1
     if _WITH_CARE_RE.search(message):
         return 2
     return 1

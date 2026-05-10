@@ -85,7 +85,7 @@ def main() -> None:
     from src.chatbot import ChatBot, load_model
     from src.evaluate import evaluate_safety
     from src.rag_pipeline import chunk_documents, create_vectorstore, load_corpus, load_vectorstore, retrieve
-    from src.safety import StickySession, classify_tier
+    from src.safety import StickySession, classify_tier, skip_rag_retrieval
 
     out_lines: list[str] = []
     out_lines.append("Mental Health Psychoeducation Bot — evaluation_results.txt")
@@ -135,7 +135,7 @@ def main() -> None:
     task1_lines: list[str] = []
     task1_lines.append("TASK 1 — Full pipeline integration (15 messages)")
     task1_lines.append("-" * 72)
-    task1_lines.append("Pipeline per message: classify_tier() → RAG retrieve (tiers 1–2 only) → respond()")
+    task1_lines.append("Pipeline per message: classify_tier() → RAG retrieve (tiers 1–2, unless greeting skip) → respond()")
     task1_lines.append("")
 
     model, tokenizer = load_model(config_path=cfg_path)
@@ -159,7 +159,8 @@ def main() -> None:
 
     for idx, (label, msg) in enumerate(MESSAGES, start=1):
         tier = int(classify_tier(msg, crisis_keywords=bot._crisis_keywords))
-        if tier in (1, 2) and vectorstore is not None:
+        skip_rag = skip_rag_retrieval()
+        if tier in (1, 2) and vectorstore is not None and not skip_rag:
             chunks = retrieve(vectorstore, msg, k=bot.top_k)
         else:
             chunks = []
@@ -169,7 +170,9 @@ def main() -> None:
         task1_lines.append(f"--- Message {idx} ({label}) ---")
         task1_lines.append(f"Input: {msg!r}")
         task1_lines.append(f"Assigned tier: {tier}")
-        if tier in (3, 4):
+        if skip_rag:
+            task1_lines.append("RAG chunks: (none — short greeting; retrieval skipped)")
+        elif tier in (3, 4):
             task1_lines.append("RAG chunks: (none — crisis/redirect path; retrieval not used)")
         elif not chunks:
             task1_lines.append("RAG chunks: (none — empty corpus or no vectorstore)")

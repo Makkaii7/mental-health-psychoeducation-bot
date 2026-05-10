@@ -23,6 +23,7 @@ from src.safety import (
     get_crisis_response,
     get_redirect_response,
     get_tier2_system_addon,
+    skip_rag_retrieval,
 )
 
 
@@ -114,7 +115,7 @@ class ChatBot:
         if tier == 3:
             return get_redirect_response()
 
-        if self.vectorstore is None:
+        if self.vectorstore is None or skip_rag_retrieval():
             chunks = []
         else:
             chunks = retrieve(self.vectorstore, user_message, k=self.top_k)
