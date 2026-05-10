@@ -54,3 +54,5 @@ Thumbs.db
 
 # Chroma local DB (optional local persistence)
 chroma_db/
+chroma_order/
+chroma_test_native/
