@@ -12,7 +12,7 @@
 
 \title{A Safety-Aware Psychoeducation Chatbot with Hybrid QLoRA and RAG Adaptation}
 
-\author{\IEEEauthorblockN{Ali Makkai}
+\author{\IEEEauthorblockN{Ali Almehairbi}
 \IEEEauthorblockA{Computational Data Science Program\\
 Khalifa University\\
 Abu Dhabi, UAE}}
@@ -162,6 +162,8 @@ Train/val loss ratio & 1.00 & No overfitting \\
 \textbf{Limitations of dense retrieval.} For emotionally phrased queries such as ``I feel empty inside,'' the dense retriever returns topically adjacent but not precisely targeted chunks (e.g., stress management content mentioning ``difficulty focusing''). This reflects a known limitation of embedding-based retrieval for colloquial or affective language, and suggests that hybrid BM25+dense retrieval or query expansion could improve grounding for emotional inputs.
 
 \textbf{Error analysis.} The primary failure mode is \textit{residual directiveness}: the model occasionally provides advice rather than asking questions, particularly for topics well-represented in CounselChat (e.g., relationship concerns). A secondary issue is that tier-2 classification relies on regex pattern matching, which may miss novel expressions of distress not covered by the keyword list. An embedding-based fallback classifier would improve recall at the cost of latency.
+
+\textbf{Ablation: adapter vs.\ base model.} We compared four scaling factors for the QLoRA adapter (1.0, 0.5, 0.3, 0.15) against the unmodified base model with identical system prompts and RAG context. At full scale (1.0), the adapter introduced informal language patterns, first-person anecdotes, and repetitive phrasing inherited from CounselChat's therapist responses. Reducing the adapter influence to 0.15 improved coherence substantially while preserving some domain-specific phrasing. However, the base Qwen3-8B model with prompt engineering alone produced the most consistently Socratic, well-structured responses across all test cases. This finding suggests that for safety-sensitive domains with small, stylistically heterogeneous training datasets, prompt engineering combined with RAG grounding may be preferable to parameter-efficient fine-tuning---a result consistent with recent observations in medical dialogue systems~\cite{xiong2024benchmarking}.
 
 % ============================================================
 \section{Industrial Implications, Limitations, and Conclusion}
