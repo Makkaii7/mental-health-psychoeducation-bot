@@ -123,10 +123,14 @@ def normalize_message(message: str) -> str:
     """NFKC unicode normalize, collapse whitespace, lowercase for matching."""
     text = unicodedata.normalize("NFKC", message)
     text = re.sub(r"\s+", " ", text).strip().lower()
+    text = text.replace("'", "").replace("'", "").replace("`", "")
     return text
 
 
 def _phrase_to_wb_pattern(phrase: str) -> str:
+    phrase = unicodedata.normalize("NFKC", phrase)
+    phrase = re.sub(r"\s+", " ", phrase).strip().lower()
+    phrase = phrase.replace("'", "").replace("'", "").replace("`", "")
     parts = phrase.strip().split()
     if not parts:
         return ""

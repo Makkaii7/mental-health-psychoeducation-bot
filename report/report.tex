@@ -66,7 +66,7 @@ Core metrics & Safety routing accuracy; response quality (5-point); inference la
 \end{tabular}
 \end{table}
 
-Mental health chatbots have attracted growing research attention at the intersection of AI and healthcare systems engineering. Fitzpatrick et al.~\cite{fitzpatrick2017} demonstrated that conversational agents delivering cognitive-behavioral therapy (CBT) content can significantly reduce depression symptoms in college students. However, fully autonomous therapeutic agents raise safety concerns: Bickmore et al.~\cite{bickmore2018} showed that users disclose sensitive information to chatbots at rates comparable to human counselors, creating risks when the system lacks adequate safety guardrails.
+Mental health chatbots have attracted growing research attention at the intersection of AI and healthcare systems engineering. Fitzpatrick et al.~\cite{fitzpatrick2017} demonstrated that conversational agents delivering cognitive-behavioral therapy (CBT) content can significantly reduce depression symptoms in college students. However, fully autonomous therapeutic agents raise safety concerns: Bickmore et al.~\cite{bickmore2010} showed that users disclose sensitive information to chatbots at rates comparable to human counselors, creating risks when the system lacks adequate safety guardrails.
 
 Recent work on LLM-based mental health applications has explored both fine-tuning and retrieval strategies. Yang et al.~\cite{yang2023mentalllama} introduced MentaLLaMA, a fine-tuned model for mental health prediction tasks, demonstrating that domain-specific adaptation improves performance over general-purpose models. Retrieval-augmented approaches have been applied to medical question answering more broadly~\cite{xiong2024benchmarking}, showing that grounding LLM responses in authoritative sources reduces hallucination in safety-critical domains.
 
@@ -92,20 +92,7 @@ Figure~\ref{fig:arch} illustrates the complete system architecture. The pipeline
 
 \begin{figure}[t]
 \centering
-\fbox{\parbox{0.95\linewidth}{\small\centering
-\textbf{System Architecture}\\[4pt]
-User Message $\rightarrow$ \textbf{Safety Classifier} (Tier 1--4)\\
-$\downarrow$\\
-Tier 3/4: Hardcoded response (redirect / crisis)\\
-Tier 1/2: \textbf{RAG Retrieval} (ChromaDB, top-3)\\
-$\downarrow$\\
-\textbf{Qwen3-8B + LoRA Adapter}\\
-(tier-specific system prompt + retrieved context)\\
-$\downarrow$\\
-\textbf{Post-processing} (strip thinking tags)\\
-$\downarrow$\\
-Response to User
-}}
+\includegraphics[width=\linewidth]{architecture.png}
 \caption{System architecture: user query flows through safety classification, optional RAG retrieval, and the fine-tuned LLM with tier-specific prompting.}
 \label{fig:arch}
 \end{figure}
@@ -216,7 +203,7 @@ N.~Bertagnolli, ``CounselChat: Counseling \& Therapy Dataset,'' Hugging Face Dat
 \bibitem{fitzpatrick2017}
 K.~K.~Fitzpatrick, A.~Darcy, and M.~Vierhile, ``Delivering Cognitive Behavior Therapy to Young Adults With Symptoms of Depression via a Fully Automated Conversational Agent (Woebot),'' \textit{JMIR Mental Health}, vol.~4, no.~2, 2017.
 
-\bibitem{bickmore2018}
+\bibitem{bickmore2010}
 T.~W.~Bickmore, S.~E.~Mitchell, B.~W.~Jack, M.~K.~Paasche-Orlow et al., ``Response to a Relational Agent by Hospital Patients with Depressive Symptoms,'' \textit{Interacting with Computers}, vol.~22, no.~4, pp.~289--298, 2010.
 
 \bibitem{yang2023mentalllama}
